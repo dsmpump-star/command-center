@@ -288,24 +288,53 @@ async function loadFleet(app){
 }
 
 async function loadEpos(app){
-  const fy=getCurrentFY();
-  const data=await fetchJSON(`${app.sheetUrl}?action=getAll&fy=${fy}`);
-  if(data.error) throw new Error(data.error);
-  let txns=[], recv=[];
-  if(data.companies && data.companies.length){
-    (data.companies||[]).forEach(c=>{
-      const d=(data.data||{})[c.id]||{};
-      txns=txns.concat(d.transactions||[]);
-      recv=recv.concat(d.received||[]);
-    });
-  } else {
-    txns=data.transactions||[];
-    recv=data.received||[];
+  // Card EPOS's backend filters by fiscal year, which can be ambiguous right at
+  // a FY boundary. Try the FY its own app has stored locally (same origin, so
+  // readable here too), then the freshly-computed current FY, then previous FY —
+  // stopping at the first one that actually returns data, so this is normally
+  // still just 1 request, only falling back if genuinely needed.
+  const candidates=[];
+  try{
+    const stored=localStorage.getItem('pinelab_fy');
+    if(stored && /^\d{4}$/.test(stored)) candidates.push(stored);
+  }catch(e){}
+  const curFY=getCurrentFY();
+  if(!candidates.includes(curFY)) candidates.push(curFY);
+  const prevFY=String(Number(curFY)-1);
+  if(!candidates.includes(prevFY)) candidates.push(prevFY);
+  candidates.push(null); // final fallback: no fy param, in case backend defaults sensibly
+
+  let lastErr=null;
+  for(const fy of candidates){
+    try{
+      const url=fy?`${app.sheetUrl}?action=getAll&fy=${fy}`:`${app.sheetUrl}?action=getAll`;
+      const data=await fetchJSON(url);
+      if(data.error){ lastErr=new Error(data.error); continue; }
+      let txns=[], recv=[];
+      if(data.companies && data.companies.length){
+        (data.companies||[]).forEach(c=>{
+          const d=(data.data||{})[c.id]||{};
+          txns=txns.concat(d.transactions||[]);
+          recv=recv.concat(d.received||[]);
+        });
+      } else {
+        txns=data.transactions||[];
+        recv=data.received||[];
+      }
+      // Found real data — use it and stop trying further FYs.
+      if(txns.length||recv.length){
+        return {
+          entries: txns.map(t=>({date:normDate(t.date),amount:Number(t.amount||0)})),
+          received: recv.map(r=>({date:normDate(r.date),amount:Number(r.amount||0)}))
+        };
+      }
+      // Empty but valid response — remember it in case every candidate is empty.
+      lastErr=null;
+    }catch(e){ lastErr=e; }
   }
-  return {
-    entries: txns.map(t=>({date:normDate(t.date),amount:Number(t.amount||0)})),
-    received: recv.map(r=>({date:normDate(r.date),amount:Number(r.amount||0)}))
-  };
+  if(lastErr) throw lastErr;
+  // All candidate FYs genuinely had no data — return an honest empty result.
+  return {entries:[], received:[]};
 }
 
 async function loadQr(app){
