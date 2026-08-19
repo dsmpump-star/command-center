@@ -465,21 +465,41 @@ function setPeriod(p){
 // ── ORCHESTRATION ─────────────────────────────────────────────────────────
 async function loadOne(app){
   try{
-    const r=await withRetry(()=>app.load(app),2,1800);
+    const r=await withRetry(()=>app.load(app),1,2500);
     results[app.key]={status:'ok',...r};
   }catch(e){
     results[app.key]={status:'err',err:e.message};
   }
-  renderCardData(app);
-  const ts=document.getElementById(`ts-${app.key}`);
-  if(ts && results[app.key].status==='ok'){
-    ts.textContent='Synced '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  try{
+    renderCardData(app);
+    const ts=document.getElementById(`ts-${app.key}`);
+    if(ts && results[app.key].status==='ok'){
+      ts.textContent='Synced '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    }
+  }catch(renderErr){
+    console.error('Render error for',app.key,renderErr);
+    results[app.key]={status:'err',err:'Display error — '+renderErr.message};
+    const body=document.getElementById(`body-${app.key}`);
+    const dot=document.getElementById(`dot-${app.key}`);
+    if(body)body.innerHTML=`<div class="app-err">⚠️ Display error — tap Refresh to try again</div>`;
+    if(dot)dot.className='sync-dot err';
   }
-  updateCombined();
-  updateComparisonStrip();
+  try{ updateCombined(); }catch(e){ console.error('updateCombined failed',e); }
+  try{ updateComparisonStrip(); }catch(e){ console.error('updateComparisonStrip failed',e); }
 }
 
+let _lastRefreshAt=0;
+const REFRESH_COOLDOWN_MS=15000; // don't allow refreshes closer than 15s apart
+
 async function refreshAll(){
+  const now=Date.now();
+  if(now-_lastRefreshAt<REFRESH_COOLDOWN_MS){
+    const waitSec=Math.ceil((REFRESH_COOLDOWN_MS-(now-_lastRefreshAt))/1000);
+    document.getElementById('refreshLbl').textContent=`Wait ${waitSec}s…`;
+    setTimeout(()=>{document.getElementById('refreshLbl').textContent='Refresh';},waitSec*1000);
+    return;
+  }
+  _lastRefreshAt=now;
   const btn=document.getElementById('refreshBtn');
   btn.classList.add('spinning');
   document.getElementById('refreshLbl').textContent='Syncing…';
@@ -488,9 +508,12 @@ async function refreshAll(){
     document.getElementById(`sub-${app.key}`).textContent='Connecting…';
     document.getElementById(`body-${app.key}`).innerHTML='<div class="app-loading">⏳ Fetching live data…</div>';
   });
-  // Stagger requests slightly so they don't all hit Google at the exact same instant
-  const jobs=APPS.map((app,i)=>sleep(i*450).then(()=>loadOne(app)));
-  await Promise.all(jobs);
+  // Stagger requests generously so they never hammer Google all at once.
+  // Each job is wrapped so one app's failure can never block the others or hang the button.
+  const jobs=APPS.map((app,i)=>
+    sleep(i*800).then(()=>loadOne(app)).catch(e=>console.error('loadOne crashed for',app.key,e))
+  );
+  await Promise.allSettled(jobs);
   btn.classList.remove('spinning');
   document.getElementById('refreshLbl').textContent='Refresh';
   document.getElementById('lastFullRefresh').textContent='Last synced '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
@@ -501,7 +524,7 @@ document.getElementById('grid').innerHTML=APPS.map(cardSkeleton).join('');
 setPeriod('today');
 refreshAll();
 // auto-refresh every 5 minutes
-setInterval(refreshAll,5*60*1000);
+setInterval(refreshAll,20*60*1000);
 
 // PWA — register service worker so this can be installed like the other 4 apps
 if('serviceWorker' in navigator){
