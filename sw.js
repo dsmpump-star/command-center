@@ -1,7 +1,9 @@
 // Command Center — minimal service worker
-// Caches only the static app shell. Live data always comes fresh from each
-// app's Google Sheet (network), never from cache, so figures are never stale.
-const CACHE_NAME = 'command-center-shell-v1';
+// Caches only the static app shell, as a fallback for offline use.
+// Live data always comes fresh from each app's Google Sheet (network),
+// and the shell itself is NETWORK-FIRST so new deployments always show
+// immediately — cache is only used if the network request fails.
+const CACHE_NAME = 'command-center-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -28,12 +30,19 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  // Never cache calls to Google Apps Script — always go live for real data.
+  // Never touch calls to Google Apps Script — always go live for real data.
   if (url.hostname.includes('script.google.com') || url.hostname.includes('googleusercontent.com')) {
     return;
   }
-  // App shell: cache-first, falling back to network.
+  // App shell: network-first, falling back to cache only if offline.
+  // This guarantees a fresh deploy is always what the user sees.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
