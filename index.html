@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Command Center — DSM Pump</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,500&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0C3547;--navy2:#164E63;--blue:#0369A1;--accent:#F59E0B;
+  --green:#059669;--red:#DC2626;--orange:#EA580C;
+  --bg:#F4F7FA;--card:#FFFFFF;--border:#E3EBF1;--text:#0F2530;--muted:#6B8595;
+  --shadow-sm:0 1px 3px rgba(12,53,71,.08);--shadow-md:0 6px 20px rgba(12,53,71,.12);
+  --fleet:#F59E0B;--epos:#1B5FBF;--qr:#5B2EE8;--pouch:#0D9488;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:900px;margin:0 auto;padding-bottom:40px;}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.topbar{background:linear-gradient(135deg,var(--navy),var(--navy2));padding:20px 18px 22px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow-md);}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand-icon{width:38px;height:38px;border-radius:11px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.brand-text h1{margin:0;font-size:16px;font-weight:800;color:#fff;letter-spacing:.2px;}
+.brand-text p{margin:1px 0 0;font-size:11px;color:rgba(255,255,255,.6);font-weight:500;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.refresh-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:700;padding:7px 12px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;}
+.refresh-btn:hover{background:rgba(255,255,255,.2);}
+.refresh-btn.spinning svg{animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.updated-txt{font-size:10px;color:rgba(255,255,255,.5);text-align:right;margin-top:3px;}
+
+/* ── Combined strip ─────────────────────────────────────────────────── */
+.combined{margin:16px 18px 0;background:var(--card);border-radius:16px;box-shadow:var(--shadow-md);overflow:hidden;border:1px solid var(--border);}
+.combined-hdr{padding:12px 16px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--border);}
+.combined-tiles{display:grid;grid-template-columns:repeat(3,1fr);}
+.ctile{padding:16px 10px;text-align:center;border-right:1px solid var(--border);}
+.ctile:last-child{border-right:none;}
+.ctile-val{font-family:'Roboto Mono',monospace;font-size:20px;font-weight:700;line-height:1.1;}
+.ctile-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:4px;font-weight:700;}
+
+/* ── App cards grid ─────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 18px 0;}
+@media (max-width:640px){.grid{grid-template-columns:1fr;}.combined-tiles{grid-template-columns:1fr;}.ctile{border-right:none;border-bottom:1px solid var(--border);}.ctile:last-child{border-bottom:none;}}
+
+.app-card{background:var(--card);border-radius:16px;box-shadow:var(--shadow-sm);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .15s;}
+.app-card:hover{box-shadow:var(--shadow-md);}
+.app-hdr{padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:relative;}
+.app-hdr::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent-clr);}
+.app-title{display:flex;align-items:center;gap:9px;}
+.app-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--accent-bg);flex-shrink:0;}
+.app-name{font-size:13px;font-weight:800;color:var(--navy);}
+.app-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.sync-dot.live{background:var(--green);box-shadow:0 0 0 3px rgba(5,150,105,.15);}
+.sync-dot.err{background:var(--red);}
+.sync-dot.loading{background:var(--accent);animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+.app-body{padding:13px 16px 15px;flex:1;display:flex;flex-direction:column;gap:9px;}
+.stat-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;}
+.stat-lbl{color:var(--muted);font-weight:600;display:flex;align-items:center;gap:5px;}
+.stat-val{font-family:'Roboto Mono',monospace;font-weight:700;font-size:13px;}
+.stat-cnt{font-size:10px;color:var(--muted);font-weight:500;margin-left:4px;}
+
+.bar-track{height:7px;border-radius:20px;background:var(--border);overflow:hidden;display:flex;margin-top:2px;}
+.bar-seg-recv{background:var(--green);height:100%;}
+.bar-seg-pend{background:var(--accent);height:100%;}
+
+.app-err{font-size:11px;color:var(--red);background:#FEF2F2;border-radius:8px;padding:8px 10px;font-weight:600;}
+.app-loading{font-size:11px;color:var(--muted);padding:8px 0;text-align:center;}
+
+.app-foot{padding:9px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.app-foot a{font-size:11px;font-weight:700;color:var(--blue);text-decoration:none;display:flex;align-items:center;gap:4px;}
+.app-foot a:hover{text-decoration:underline;}
+.app-foot .ts{font-size:9.5px;color:var(--muted);}
+
+.footer-note{padding:20px 18px 4px;text-align:center;font-size:10.5px;color:var(--muted);line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand">
+        <div class="brand-icon">⛽</div>
+        <div class="brand-text">
+          <h1>Command Center</h1>
+          <p>M/S Revandas Jhaverbhai & Sons — all 4 apps, one glance</p>
+        </div>
+      </div>
+      <div>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshAll()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          <span id="refreshLbl">Refresh</span>
+        </button>
+        <div class="updated-txt" id="lastFullRefresh">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="combined">
+    <div class="combined-hdr">📊 Combined — All 4 Apps</div>
+    <div class="combined-tiles">
+      <div class="ctile"><div class="ctile-val" id="c-total" style="color:var(--navy);">₹0</div><div class="ctile-lbl">Total Entries</div></div>
+      <div class="ctile"><div class="ctile-val" id="c-recv" style="color:var(--green);">₹0</div><div class="ctile-lbl">Received</div></div>
+      <div class="ctile"><div class="ctile-val" id="c-pend" style="color:var(--orange);">₹0</div><div class="ctile-lbl">Pending</div></div>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="footer-note">Pulls live, read-only data from each app's own Google Sheet.<br>Nothing here writes back — edit entries inside each app as usual.</div>
+
+</div>
+
+<script>
+// ── APP REGISTRY ─────────────────────────────────────────────────────────
+const APPS=[
+  {
+    key:'fleet', name:'Fleet Card', icon:'🚛', color:'#F59E0B', bg:'#FEF3E2',
+    url:'https://dsmpump-star.github.io/fleet-card',
+    sheetUrl:'https://script.google.com/macros/s/AKfycbzeqSllDSEiM_Mf22uB3GfnYfIGQxQAOr1O_jgb3VaRu7st9iVv2ZUVKh6wecl5ycVQXw/exec',
+    transport:'jsonp',
+    load:loadFleet
+  },
+  {
+    key:'epos', name:'Card EPOS', icon:'💳', color:'#1B5FBF', bg:'#E9F1FC',
+    url:'https://dsmpump-star.github.io/pinelab-epos',
+    sheetUrl:'https://script.google.com/macros/s/AKfycbyaU2xr-mOyyHsWEq0DXcPM5M4izSCAAiRnTE-R0FWa33QC0YXJRjY2t7o27fHAEqNoHw/exec',
+    transport:'fetch',
+    load:loadEpos
+  },
+  {
+    key:'qr', name:'QR Collections', icon:'📱', color:'#5B2EE8', bg:'#F0EBFD',
+    url:'https://dsmpump-star.github.io/qr-collections',
+    sheetUrl:'https://script.google.com/macros/s/AKfycbx3TsBrEbct7yxZxwguAp6JAmFFg639T5RxkhVQjsyfp5kusvjIOEek5jvtWXcfW4Xo0g/exec',
+    transport:'fetch',
+    load:loadQr
+  },
+  {
+    key:'pouch', name:'Customer Pouch', icon:'💼', color:'#0D9488', bg:'#E4F5F3',
+    url:'https://dsmpump-star.github.io/customer-pouch',
+    sheetUrl:'https://script.google.com/macros/s/AKfycbyeoeFEqyhlAPEJyBl9GgtQRKxzz_5ZAg4Agq7aF5hdrT-kZZhL-7H3Rz8JoSDNccJv/exec',
+    transport:'fetch',
+    load:loadPouch
+  }
+];
+
+let results={}; // key -> {status, entriesAmt, entriesCnt, recvAmt, recvCnt, pendAmt, err}
+
+// ── TRANSPORT HELPERS ────────────────────────────────────────────────────
+function fetchJSONP(url,timeoutMs=12000){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    const cb='_cc_cb'+Date.now()+Math.floor(Math.random()*1e6);
+    let done=false;
+    window[cb]=(data)=>{ if(done)return; done=true; resolve(data); cleanup(); };
+    s.onerror=()=>{ if(done)return; done=true; reject(new Error('script load failed')); cleanup(); };
+    function cleanup(){ try{delete window[cb];}catch(e){} s.remove(); }
+    s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
+    document.head.appendChild(s);
+    setTimeout(()=>{ if(done)return; done=true; cleanup(); reject(new Error('timeout')); },timeoutMs);
+  });
+}
+async function fetchJSON(url,timeoutMs=12000){
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),timeoutMs);
+  try{
+    const r=await fetch(url,{signal:ctrl.signal,redirect:'follow'});
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+function getCurrentFY(){
+  const d=new Date();
+  const y=d.getFullYear(), m=d.getMonth()+1; // 1-12
+  return String(m<4?y-1:y);
+}
+function fmtAmt(n){
+  n=Number(n)||0;
+  return '₹'+n.toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+
+// ── PER-APP LOADERS — each returns {entriesAmt, entriesCnt, recvAmt, recvCnt} ──
+async function loadFleet(app){
+  const data=await fetchJSONP(`${app.sheetUrl}?action=getAll`);
+  if(data.error) throw new Error(data.error);
+  const txns=(data.transactions||[]).filter(t=>{
+    const isFleetCard=!t.customer||String(t.customer).trim()==='Fleet Card';
+    const isBlank=Number(t.amount||0)===0 && (t.remark||'').includes('[BLANK]');
+    return isFleetCard && !isBlank;
+  });
+  const recv=(data.received||[]).filter(r=>!r.customer||String(r.customer).trim()==='Fleet Card');
+  const entriesAmt=txns.reduce((s,t)=>s+Number(t.amount||0),0);
+  const recvAmt=recv.reduce((s,r)=>s+Number(r.amount||0),0);
+  return {entriesAmt, entriesCnt:txns.length, recvAmt, recvCnt:recv.length};
+}
+
+async function loadEpos(app){
+  const fy=getCurrentFY();
+  const data=await fetchJSON(`${app.sheetUrl}?action=getAll&fy=${fy}`);
+  if(data.error) throw new Error(data.error);
+  let txns=[], recv=[];
+  if(data.companies && data.companies.length){
+    (data.companies||[]).forEach(c=>{
+      const d=(data.data||{})[c.id]||{};
+      txns=txns.concat(d.transactions||[]);
+      recv=recv.concat(d.received||[]);
+    });
+  } else {
+    txns=data.transactions||[];
+    recv=data.received||[];
+  }
+  const entriesAmt=txns.reduce((s,t)=>s+Number(t.amount||0),0);
+  const recvAmt=recv.reduce((s,r)=>s+Number(r.amount||0),0);
+  return {entriesAmt, entriesCnt:txns.length, recvAmt, recvCnt:recv.length};
+}
+
+async function loadQr(app){
+  const data=await fetchJSON(`${app.sheetUrl}?action=getAll`);
+  if(data.error) throw new Error(data.error);
+  const entries=data.entries||[];
+  const recv=data.received||[];
+  const entriesAmt=entries.reduce((s,e)=>s+Number(e.pp||0)+Number(e.uf||0),0);
+  const recvAmt=recv.reduce((s,r)=>s+Number(r.pp||0)+Number(r.uf||0),0);
+  return {entriesAmt, entriesCnt:entries.length, recvAmt, recvCnt:recv.length};
+}
+
+async function loadPouch(app){
+  const data=await fetchJSON(`${app.sheetUrl}?action=getAll`);
+  if(data.error) throw new Error(data.error);
+  const txns=data.transactions||[];
+  const recv=data.received||[];
+  const entriesAmt=txns.reduce((s,t)=>s+Number(t.amount||0),0);
+  const recvAmt=recv.reduce((s,r)=>s+Number(r.amount||0),0);
+  return {entriesAmt, entriesCnt:txns.length, recvAmt, recvCnt:recv.length};
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function cardSkeleton(app){
+  return `
+  <div class="app-card" id="card-${app.key}" style="--accent-clr:${app.color};--accent-bg:${app.bg};">
+    <div class="app-hdr">
+      <div class="app-title">
+        <div class="app-icon" style="background:${app.bg};">${app.icon}</div>
+        <div>
+          <div class="app-name">${app.name}</div>
+          <div class="app-sub" id="sub-${app.key}">Connecting…</div>
+        </div>
+      </div>
+      <div class="sync-dot loading" id="dot-${app.key}"></div>
+    </div>
+    <div class="app-body" id="body-${app.key}">
+      <div class="app-loading">⏳ Fetching live data…</div>
+    </div>
+    <div class="app-foot">
+      <a href="${app.url}" target="_blank" rel="noopener">Open app ↗</a>
+      <span class="ts" id="ts-${app.key}"></span>
+    </div>
+  </div>`;
+}
+
+function renderCardData(app,r){
+  const dot=document.getElementById(`dot-${app.key}`);
+  const sub=document.getElementById(`sub-${app.key}`);
+  const body=document.getElementById(`body-${app.key}`);
+  const ts=document.getElementById(`ts-${app.key}`);
+  if(r.status==='err'){
+    dot.className='sync-dot err';
+    sub.textContent='Connection failed';
+    body.innerHTML=`<div class="app-err">⚠️ Couldn't load — ${r.err||'unknown error'}</div>`;
+    return;
+  }
+  dot.className='sync-dot live';
+  sub.textContent=`${r.entriesCnt} entries · ${r.recvCnt} received`;
+  const pend=Math.max(0,r.entriesAmt-r.recvAmt);
+  const total=r.entriesAmt||1;
+  const recvPct=Math.min(100,(r.recvAmt/total)*100);
+  const pendPct=Math.max(0,100-recvPct);
+  body.innerHTML=`
+    <div class="stat-row"><span class="stat-lbl">📥 Entries</span><span class="stat-val">${fmtAmt(r.entriesAmt)}</span></div>
+    <div class="stat-row"><span class="stat-lbl">✅ Received</span><span class="stat-val" style="color:var(--green);">${fmtAmt(r.recvAmt)}</span></div>
+    <div class="stat-row"><span class="stat-lbl">⏳ Pending</span><span class="stat-val" style="color:${pend>0?'var(--orange)':'var(--muted)'};">${fmtAmt(pend)}</span></div>
+    <div class="bar-track"><div class="bar-seg-recv" style="width:${recvPct}%;"></div><div class="bar-seg-pend" style="width:${pendPct}%;"></div></div>
+  `;
+  ts.textContent='Synced '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+function updateCombined(){
+  let tE=0,tR=0;
+  APPS.forEach(a=>{
+    const r=results[a.key];
+    if(r && r.status==='ok'){ tE+=r.entriesAmt; tR+=r.recvAmt; }
+  });
+  const tP=Math.max(0,tE-tR);
+  document.getElementById('c-total').textContent=fmtAmt(tE);
+  document.getElementById('c-recv').textContent=fmtAmt(tR);
+  document.getElementById('c-pend').textContent=fmtAmt(tP);
+}
+
+// ── ORCHESTRATION ─────────────────────────────────────────────────────────
+async function loadOne(app){
+  try{
+    const r=await app.load(app);
+    results[app.key]={status:'ok',...r};
+  }catch(e){
+    results[app.key]={status:'err',err:e.message};
+  }
+  renderCardData(app,results[app.key]);
+  updateCombined();
+}
+
+async function refreshAll(){
+  const btn=document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  document.getElementById('refreshLbl').textContent='Syncing…';
+  APPS.forEach(app=>{
+    document.getElementById(`dot-${app.key}`).className='sync-dot loading';
+    document.getElementById(`sub-${app.key}`).textContent='Connecting…';
+    document.getElementById(`body-${app.key}`).innerHTML='<div class="app-loading">⏳ Fetching live data…</div>';
+  });
+  await Promise.all(APPS.map(loadOne));
+  btn.classList.remove('spinning');
+  document.getElementById('refreshLbl').textContent='Refresh';
+  document.getElementById('lastFullRefresh').textContent='Last synced '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+document.getElementById('grid').innerHTML=APPS.map(cardSkeleton).join('');
+refreshAll();
+// auto-refresh every 5 minutes
+setInterval(refreshAll,5*60*1000);
+</script>
+</body>
+</html>
