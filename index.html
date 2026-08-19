@@ -490,7 +490,7 @@ async function loadOne(app){
 }
 
 let _lastRefreshAt=0;
-const REFRESH_COOLDOWN_MS=15000; // don't allow refreshes closer than 15s apart
+const REFRESH_COOLDOWN_MS=30000; // don't allow refreshes closer than 30s apart
 
 async function refreshAll(){
   const now=Date.now();
@@ -525,7 +525,7 @@ document.getElementById('grid').innerHTML=APPS.map(cardSkeleton).join('');
 setPeriod('today');
 refreshAll();
 // auto-refresh every 5 minutes
-setInterval(refreshAll,20*60*1000);
+setInterval(refreshAll,30*60*1000);
 
 // PWA — register service worker so this can be installed like the other 4 apps
 if('serviceWorker' in navigator){
