@@ -3,13 +3,17 @@
 // Live data always comes fresh from each app's Google Sheet (network),
 // and the shell itself is NETWORK-FIRST so new deployments always show
 // immediately — cache is only used if the network request fails.
-const CACHE_NAME = 'command-center-shell-v2';
+const CACHE_NAME = 'command-center-shell-v3';
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/apple-touch-icon-180.png',
+  './icons/apple-touch-icon-152.png',
+  './icons/apple-touch-icon-120.png'
 ];
 
 self.addEventListener('install', (event) => {
