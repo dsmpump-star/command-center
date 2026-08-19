@@ -97,6 +97,12 @@ body{margin:0;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--
 .bar-seg-recv{background:var(--green);height:100%;}
 .bar-seg-pend{background:var(--accent);height:100%;}
 
+.cust-list{border-top:1px dashed var(--border);margin-top:3px;padding-top:8px;display:flex;flex-direction:column;gap:5px;}
+.cust-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;}
+.cust-name{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%;}
+.cust-amt{font-family:'Roboto Mono',monospace;font-weight:700;color:var(--navy);}
+.cust-more{font-size:10.5px;color:var(--muted);font-weight:600;text-align:center;padding-top:1px;}
+
 .app-err{font-size:11px;color:var(--red);background:#FEF2F2;border-radius:8px;padding:8px 10px;font-weight:600;}
 .app-loading{font-size:11px;color:var(--muted);padding:8px 0;text-align:center;}
 
@@ -319,8 +325,8 @@ async function loadPouch(app){
   const txns=data.transactions||[];
   const recv=data.received||[];
   return {
-    entries: txns.map(t=>({date:normDate(t.date),amount:Number(t.amount||0)})),
-    received: recv.map(r=>({date:normDate(r.date),amount:Number(r.amount||0)}))
+    entries: txns.map(t=>({date:normDate(t.date),amount:Number(t.amount||0),customer:t.customer||'—'})),
+    received: recv.map(r=>({date:normDate(r.date),amount:Number(r.amount||0),customer:r.customer||'—'}))
   };
 }
 
@@ -380,11 +386,29 @@ function renderCardData(app){
   const total=fEntries.amt||1;
   const recvPct=Math.min(100,(fRecv.amt/total)*100);
   const pendPct=Math.max(0,100-recvPct);
+  let custHtml='';
+  if(app.key==='pouch'){
+    const matched=r.entries.filter(periodFilter(currentPeriod));
+    const byCust={};
+    matched.forEach(e=>{ byCust[e.customer]=(byCust[e.customer]||0)+e.amount; });
+    const names=Object.keys(byCust).sort((a,b)=>byCust[b]-byCust[a]);
+    if(names.length){
+      const shown=names.slice(0,5);
+      const rest=names.length-shown.length;
+      custHtml=`<div class="cust-list">`+
+        shown.map(n=>`<div class="cust-row"><span class="cust-name">👤 ${n}</span><span class="cust-amt">${fmtAmt(byCust[n])}</span></div>`).join('')+
+        (rest>0?`<div class="cust-more">+${rest} more customer${rest>1?'s':''}</div>`:'')+
+      `</div>`;
+    } else {
+      custHtml=`<div class="cust-list"><div class="cust-more">No customer entries this period</div></div>`;
+    }
+  }
   body.innerHTML=`
     <div class="stat-row"><span class="stat-lbl">📥 Entries</span><span class="stat-val">${fmtAmt(fEntries.amt)}</span></div>
     <div class="stat-row"><span class="stat-lbl">✅ Received</span><span class="stat-val" style="color:var(--green);">${fmtAmt(fRecv.amt)}</span></div>
     <div class="stat-row"><span class="stat-lbl">⏳ Pending</span><span class="stat-val" style="color:${pend>0?'var(--orange)':'var(--muted)'};">${fmtAmt(pend)}</span></div>
     <div class="bar-track"><div class="bar-seg-recv" style="width:${recvPct}%;"></div><div class="bar-seg-pend" style="width:${pendPct}%;"></div></div>
+    ${custHtml}
   `;
 }
 
