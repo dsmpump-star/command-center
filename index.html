@@ -383,9 +383,10 @@ function renderCardData(app){
   const fRecv=sumRecords(r.received,periodFilter(currentPeriod));
   sub.textContent=`${fEntries.cnt} entries · ${fRecv.cnt} received`;
   const pend=Math.max(0,fEntries.amt-fRecv.amt);
-  const total=fEntries.amt||1;
-  const recvPct=Math.min(100,(fRecv.amt/total)*100);
-  const pendPct=Math.max(0,100-recvPct);
+  const hasData=fEntries.amt>0||fRecv.amt>0;
+  const barTotal=Math.max(fEntries.amt,fRecv.amt)||1;
+  const recvPct=hasData?Math.min(100,(fRecv.amt/barTotal)*100):0;
+  const pendPct=hasData?Math.max(0,100-recvPct):0;
   let custHtml='';
   if(app.key==='pouch'){
     const matched=r.entries.filter(periodFilter(currentPeriod));
