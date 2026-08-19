@@ -512,7 +512,7 @@ async function refreshAll(){
   // Stagger requests generously so they never hammer Google all at once.
   // Each job is wrapped so one app's failure can never block the others or hang the button.
   const jobs=APPS.map((app,i)=>
-    sleep(i*800).then(()=>loadOne(app)).catch(e=>console.error('loadOne crashed for',app.key,e))
+    sleep(i*3000).then(()=>loadOne(app)).catch(e=>console.error('loadOne crashed for',app.key,e))
   );
   await Promise.allSettled(jobs);
   btn.classList.remove('spinning');
